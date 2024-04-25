@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Web App</title>
+    <style>
+        .fondo {
+            font-family: Arial, sans-serif;
+            /* Updated background to use the image */
+            background-repeat: no-repeat;
+            background-size: cover;
+            margin: 0;
+            padding: 0;
+        }
+
+        img {         
+                width: 1920px;
+                height: 993px;
+                background: #00000000;
+            }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #videoContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #video {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #333;
+        }
+
+        #captureBtn {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #captureBtn:hover {
+            background-color: #0056b3;
+        }
+
+        #canvas {
+            display: none;
+            margin-top: 20px;
+            border: 2px solid #333;
+        }
+        .contenedor {
+    position: relative;
+    display: inline-block;
+}
+
+.rectangulo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #002854; /* Color azul oscuro semi-transparente */
+}
+
+img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+        
+        
+    </style>
+</head>
+<body>
+    
+    </div>
+    <div class="container">
+        <h1>OCR Web Application</h1>
+        <div id="videoContainer">
+            <img src="https://somosucv.edu.pe/_assets/img/sede/_olivos.jpg" >
+            <video id="video" autoplay></video>
+        </div>
+        <button id="captureBtn">Tomar foto</button>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        let stream;
+    
+        captureBtn.addEventListener('click', function() {
+            Swal.fire({
+                title: '¿Desea tomar una foto?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    if (!stream) {
+                        navigator.mediaDevices.getUserMedia({ video: true }).then(function(mediaStream) {
+                            stream = mediaStream;
+                            video.srcObject = mediaStream;
+                            video.play();
+                            canvas.style.display = 'block';
+                        }).catch(function(error) {
+                            console.error("No se pudo acceder a la cámara", error);
+                        });
+                    }
+                }
+            });
+        });
+    
+        video.addEventListener('click', function() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            showCapturedImage();
+        });
+    
+        function showCapturedImage() {
+            Swal.fire({
+                title: 'Imagen capturada:',
+                imageUrl: canvas.toDataURL(),
+                imageAlt: 'Captured Image',
+                showDenyButton: true,
+                confirmButtonText: 'Sí',
+                denyButtonText: 'No'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    saveTextFile();
+                } else {
+                    resetCamera();
+                }
+            });
+        }
+    
+        function saveTextFile() {
+            Swal.fire({
+                title: 'Ingrese el nombre del archivo:',
+                input: 'text',
+                inputPlaceholder: 'Nombre del archivo',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    const fileName = result.value;
+                    processImage(fileName);
+                } else {
+                    resetCamera();
+                }
+            });
+        }
+    
+        function processImage(fileName) {
+            Tesseract.recognize(
+                canvas,
+                'eng',
+                {
+                    logger: m => console.log(m)
+                }
+            ).then(function({ data: { text } }) {
+                const finalFileName = fileName.trim() || 'captured_text';
+                downloadTextFile(text, finalFileName + '.txt');
+                resetCamera();
+            });
+        }
+    
+        function resetCamera() {
+            canvas.style.display = 'none';
+            video.style.display = 'block';
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                });
+                stream = null;
+            }
+        }
+    
+        function downloadTextFile(text, filename) {
+            var a = document.createElement('a');
+            var file = new Blob([text], {type: 'text/plain'});
+    
+            a.href = URL.createObjectURL(file);
+            a.download = filename;
+            a.click();
+    
+            URL.revokeObjectURL(a.href);
+        }
+    </script>
+</body>
+</html>
